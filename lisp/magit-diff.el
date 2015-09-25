@@ -2116,7 +2116,9 @@ are highlighted."
                       (push ov magit-region-overlays)
                       ov)))
         (ov sbeg cbeg 'face 'magit-diff-lines-heading
-            'display (concat (magit-diff-hunk-region-header section) "\n"))
+            'display (magit-diff-hunk-region-header section)
+            'after-string (propertize "\s" 'face 'magit-diff-lines-heading
+                                      'display align))
         (ov cbeg rbeg 'face face 'priority 2)
         (when (and (window-system) magit-diff-show-lines-boundary)
           (let ((eol (save-excursion (goto-char rbeg)
