@@ -2130,13 +2130,13 @@ are highlighted."
             (if (= rbeg bol)
                 (let ((face (list :overline color :underline color)))
                   (ov rbeg eol 'face face 'after-string
-                      (propertize "\s" 'face face 'display align)))
+                      (propertize "\s" 'face face 'display align 'cursor t)))
               (let ((face (list :overline color)))
                 (ov rbeg eol 'face face 'after-string
-                    (propertize "\s" 'face face 'display align)))
+                    (propertize "\s" 'face face 'display align 'cursor t)))
               (let ((face (list :underline color)))
                 (ov bol rend 'face face 'after-string
-                    (propertize "\s\n" 'face face 'display align))))))
+                    (propertize "\s\n" 'face face 'display align 'cursor t))))))
         (ov (1+ rend) send 'face face 'priority 2)))))
 
 ;;; Diff Extract
