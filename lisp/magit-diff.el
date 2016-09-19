@@ -2124,8 +2124,10 @@ are highlighted."
                 (bol (save-excursion (goto-char rend)
                                      (line-beginning-position)))
                 (color (face-background 'magit-diff-lines-boundary nil t)))
-            (if nil
-                nil
+            (if (= rbeg bol)
+                (let ((face (list :overline color :underline color)))
+                  (ov rbeg eol 'face face 'after-string
+                      (propertize "\s" 'face face 'display align)))
               (let ((face (list :overline color)))
                 (ov rbeg eol 'face face 'after-string
                     (propertize "\s" 'face face 'display align)))
