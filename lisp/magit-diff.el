@@ -2105,7 +2105,8 @@ are highlighted."
           (send (magit-section-end section))
           (face (if magit-diff-highlight-hunk-body
                     'magit-diff-context-highlight
-                  'magit-diff-context)))
+                  'magit-diff-context))
+          )
       (when magit-diff-unmarked-lines-keep-foreground
         (setq face (list :background (face-attribute face :background))))
       (cl-flet ((ov (start end &rest args)
@@ -2118,14 +2119,21 @@ are highlighted."
             'display (concat (magit-diff-hunk-region-header section) "\n"))
         (ov cbeg rbeg 'face face 'priority 2)
         (when (and (window-system) magit-diff-show-lines-boundary)
-          (ov rbeg (1+ rbeg) 'before-string
-              (propertize (concat (propertize "\s" 'display '(space :height (1)))
-                                  (propertize "\n" 'line-height t))
-                          'face 'magit-diff-lines-boundary))
-          (ov rend (1+ rend) 'after-string
-              (propertize (concat (propertize "\s" 'display '(space :height (1)))
-                                  (propertize "\n" 'line-height t))
-                          'face 'magit-diff-lines-boundary)))
+          (let ((eol (1+ rbeg))
+                (bol (1+ rend))
+                )
+            (if nil
+                nil
+              (let ((face 'magit-diff-lines-boundary))
+                (ov rbeg eol 'before-string
+                    (propertize (concat (propertize "\s" 'display '(space :height (1)))
+                                        (propertize "\n" 'line-height t))
+                                'face face)))
+              (let ((face 'magit-diff-lines-boundary))
+                (ov bol rend 'after-string
+                    (propertize (concat (propertize "\s" 'display '(space :height (1)))
+                                        (propertize "\n" 'line-height t))
+                                'face face))))))
         (ov (1+ rend) send 'face face 'priority 2)))))
 
 ;;; Diff Extract
