@@ -2110,12 +2110,15 @@ are highlighted."
                                             ,(window-hscroll)))))
       (when magit-diff-unmarked-lines-keep-foreground
         (setq face (list :background (face-attribute face :background))))
-      (cl-flet ((ov (start end &rest args)
-                    (let ((ov (make-overlay start end nil t)))
-                      (overlay-put ov 'evaporate t)
-                      (while args (overlay-put ov (pop args) (pop args)))
-                      (push ov magit-region-overlays)
-                      ov)))
+      (cl-flet* ((ov (start end &rest args)
+                     (let ((ov (make-overlay start end nil t)))
+                       (overlay-put ov 'evaporate t)
+                       (while args (overlay-put ov (pop args) (pop args)))
+                       (push ov magit-region-overlays)
+                       ov))
+                 (ln (start end &rest face)
+                     (ov start end 'face face 'after-string
+                         (propertize "\s" 'face face 'display align 'cursor t))))
         (ov sbeg (1- cbeg) 'face 'magit-diff-lines-heading
             'display (magit-diff-hunk-region-header section)
             'after-string (propertize "\s" 'face 'magit-diff-lines-heading
@@ -2130,15 +2133,9 @@ are highlighted."
                                      (point)))
                 (color (face-background 'magit-diff-lines-boundary nil t)))
             (if (= rbeg bol)
-                (let ((face (list :overline color :underline color)))
-                  (ov rbeg eol 'face face 'after-string
-                      (propertize "\s" 'face face 'display align 'cursor t)))
-              (let ((face (list :overline color)))
-                (ov rbeg eol 'face face 'after-string
-                    (propertize "\s" 'face face 'display align 'cursor t)))
-              (let ((face (list :underline color)))
-                (ov bol rend 'face face 'after-string
-                    (propertize "\s\n" 'face face 'display align 'cursor t))))))
+                (ln rbeg eol :overline color :underline color)
+              (ln rbeg eol :overline color)
+              (ln bol rend :underline color))))
         (ov (1+ rend) send 'face face 'priority 2)))))
 
 ;;; Diff Extract
