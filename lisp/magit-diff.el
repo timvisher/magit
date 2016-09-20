@@ -2089,15 +2089,53 @@ are highlighted."
 (defvar magit-diff-unmarked-lines-keep-foreground t)
 
 (defun magit-diff-update-hunk-region (section)
-  (when (and (eq (magit-diff-scope section t) 'region)
-             (not (and (if (version< emacs-version "25.1")
-                           (eq this-command 'mouse-drag-region)
-                         (or (eq last-command 'mouse-drag-region)
-                             ;; When another window was previously
-                             ;; selected then the last-command is
-                             ;; a byte-code function.
-                             (byte-code-function-p last-command)))
-                       (eq (region-end) (region-beginning)))))
+  (when (eq (magit-diff-scope section t) 'region)
+    (if (version< emacs-version "25.1")
+        (magit-diff-update-hunk-region-v24 section)
+      (magit-diff-update-hunk-region-v25 section))))
+
+(defun magit-diff-update-hunk-region-v24 (section)
+  (unless (and (eq this-command 'mouse-drag-region)
+               (eq (region-end) (region-beginning)))
+    (let ((sbeg (magit-section-start section))
+          (cbeg (magit-section-content section))
+          (rbeg (save-excursion (goto-char (region-beginning))
+                                (line-beginning-position)))
+          (rend (save-excursion (goto-char (region-end))
+                                (line-end-position)))
+          (send (magit-section-end section))
+          (face (if magit-diff-highlight-hunk-body
+                    'magit-diff-context-highlight
+                  'magit-diff-context)))
+      (when magit-diff-unmarked-lines-keep-foreground
+        (setq face (list :background (face-attribute face :background))))
+      (cl-flet ((ov (start end &rest args)
+                    (let ((ov (make-overlay start end nil t)))
+                      (overlay-put ov 'evaporate t)
+                      (while args (overlay-put ov (pop args) (pop args)))
+                      (push ov magit-region-overlays)
+                      ov)))
+        (ov sbeg cbeg 'face 'magit-diff-lines-heading
+            'display (concat (magit-diff-hunk-region-header section) "\n"))
+        (ov cbeg rbeg 'face face 'priority 2)
+        (when (and (window-system) magit-diff-show-lines-boundary)
+          (ov rbeg (1+ rbeg) 'before-string
+              (propertize (concat (propertize "\s" 'display '(space :height (1)))
+                                  (propertize "\n" 'line-height t))
+                          'face 'magit-diff-lines-boundary))
+          (ov rend (1+ rend) 'after-string
+              (propertize (concat (propertize "\s" 'display '(space :height (1)))
+                                  (propertize "\n" 'line-height t))
+                          'face 'magit-diff-lines-boundary)))
+        (ov (1+ rend) send 'face face 'priority 2)))))
+
+(defun magit-diff-update-hunk-region-v25 (section)
+  (unless (and (or (eq last-command 'mouse-drag-region)
+                   ;; When another window was previously
+                   ;; selected then the last-command is
+                   ;; a byte-code function.
+                   (byte-code-function-p last-command))
+               (eq (region-end) (region-beginning)))
     (let ((sbeg (magit-section-start section))
           (cbeg (magit-section-content section))
           (rbeg (magit-diff-hunk-region-beginning))
