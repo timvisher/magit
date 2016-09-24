@@ -642,6 +642,15 @@ Added to `font-lock-extend-region-functions'."
      (0 'font-lock-comment-face))
     (,(format "^%s On branch \\(.*\\)" comment-start)
      (1 'git-commit-comment-branch t))
+    (,(format
+       "^%s Your branch \\(is up-to-date with\\|and\\) '\\([^']*\\)'"
+       comment-start)
+     (2 'git-commit-comment-branch t))
+    (,(format
+       "^%s Your branch \\(is ahead of\\|is behind of\\) '\\([^']*\\)' by \\([0-9]*\\)"
+       comment-start)
+     (2 'git-commit-comment-branch t)
+     (3 'bold t))
     (,(format "^%s Not currently on any branch." comment-start)
      (1 'git-commit-comment-detached t))
     (,(format "^%s %s" comment-start
