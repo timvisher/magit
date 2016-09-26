@@ -119,22 +119,43 @@ Also see option `magit-log-margin-spec'."
                        (string    :tag "Unit plural string")
                        (integer   :tag "Seconds in unit"))))
 
-(defcustom magit-log-margin-spec '(28 7 magit-duration-spec)
+(defcustom magit-log-margin-spec
+  '(42 25 nil "%ai")
+  ;;'(28 7 magit-duration-spec nil)
   "How to format the log margin.
 
 The log margin is used to display each commit's author followed
-by the commit's age.  This option controls the total width of the
-margin and how time units are formatted, the value has the form:
+by the commit's age, or author or committer date.  This option
+controls the total width of the margin and how the ages or dates
+are formatted, the value has the form (due to historic reasons):
 
-  (WIDTH UNIT-WIDTH DURATION-SPEC)
+  (WIDTH DATE-WIDTH DURATION-SPEC FORMAT)
 
-WIDTH specifies the total width of the log margin.  UNIT-WIDTH is
-either the integer 1, in which case time units are displayed as a
-single characters, leaving more room for author names; or it has
-to be the width of the longest time unit string in DURATION-SPEC.
+WIDTH specifies the total width of the log margin.
+
+FORMAT, a string, specifies the format containing time-related
+%-placeholders suitable for `git-log's `--format' argument.  See
+the manpage for the valid placeholders.  DATE-WIDTH specifies the
+width of the date part, the width of the name part is calculated
+automatically.  If DATE-WIDTH is to larger than the actual length
+of the date string, then that results in an error.  It may however
+be shorter in order to cut off the timezone part.  DURATION-SPEC
+is irrelevant in this case.
+
+FIXME the \"it may be shorter\" part isn't implemented yet
+
+If FORMAT is one of \"%ai\" or \"%ci\", then the a relative date is
+shown, i.e. the age of the commit.  This is implemented in Lisp
+and \"%ar\" and \"%cr\" are not supported because they may return a
+string that contains multiple time units and is therfore to long.
+
+In this case DATE-WIDTH does not specify the width of the entire
+date part of the margin.  Instead it has to match the width of
+the longest time unit string in DURATION-SPEC, or be the integer
+1, in which case the time units are displayed as a single string.
 DURATION-SPEC has to be a variable, its value controls which time
 units, in what language, are being used."
-  :package-version '(magit . "2.1.0")
+  :package-version '(magit . "2.9.0")
   :group 'magit-log
   :set-after '(magit-duration-spec)
   :type '(list (integer  :tag "Margin width")
@@ -143,7 +164,8 @@ units, in what language, are being used."
                                   :tag "abbreviate to single character" 1)
                          (integer :format "%t\n"
                                   :tag "show full name" 7))
-               (variable :tag "Duration spec variable")))
+               (variable :tag "Duration spec variable")
+               (string   :tag "Format")))
 
 (defcustom magit-log-show-refname-after-summary nil
   "Whether to show refnames after commit summaries.
@@ -785,11 +807,12 @@ Do not add this to a hook variable."
          (remove "--literal-pathspecs" magit-git-global-arguments)))
     (magit-git-wash (apply-partially #'magit-log-wash-log 'log)
       "log"
-      (format "--format=%%h%s %s[%%aN][%%at]%%s%s"
+      (format "--format=%%h%s %s[%%aN][%s]%%s%s"
               (if (member "--decorate" args) "%d" "")
               (if (member "--show-signature" args)
                   (progn (setq args (remove "--show-signature" args)) "%G?")
                 "")
+              (or (nth 3 magit-log-margin-spec) "%at")
               (if (member "++header" args)
                   (if (member "--graph" (setq args (remove "++header" args)))
                       (concat "\n" magit-log-revision-headers-format "\n")
@@ -1014,9 +1037,13 @@ Do not add this to a hook variable."
   t)
 
 (defun magit-format-log-margin (&optional author date)
-  (-let* (((total-width unit-width duration-spec) magit-log-margin-spec)
-          (name-width (- total-width 1 3 ; gap, digits
-                         (if (= unit-width 1) 1 (1+ unit-width)) ; unit(+space)
+  (-let* (((total-width date-width duration-spec format) magit-log-margin-spec)
+          (show-age (member format '("%at" "%ct")))
+          (name-width (- total-width 1 ; gap
+                         (if show-age
+                             (+ 3 ; digits
+                                (if (= date-width 1) 1 (1+ date-width))) ; unit
+                           date-width)
                          (if (derived-mode-p 'magit-log-mode) 1 0)))) ; fringe
     (if date
         (magit-make-margin-overlay
@@ -1026,11 +1053,14 @@ Do not add this to a hook variable."
                                    ?\s (make-string 1 magit-ellipsis))
                                   'face 'magit-log-author)
                       " "))
-         (propertize (magit-format-duration
-                      (abs (- (float-time)
-                              (string-to-number date)))
-                      (symbol-value duration-spec)
-                      unit-width)
+         (propertize (if show-age
+                         (magit-format-duration
+                          (abs (- (float-time)
+                                  (string-to-number date)))
+                          (symbol-value duration-spec)
+                          date-width)
+                       date)
+                     ;; (substring date 0 date-width)
                      'face 'magit-log-date)
          (and (derived-mode-p 'magit-log-mode)
               (propertize " " 'face 'fringe)))
