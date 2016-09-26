@@ -1014,19 +1014,16 @@ Do not add this to a hook variable."
   t)
 
 (defun magit-format-log-margin (&optional author date)
-  (-let [(width unit-width duration-spec) magit-log-margin-spec]
-    (when (and date (not author))
-      (setq width (+ (if (= unit-width 1) 1 (1+ unit-width))
-                     (if (derived-mode-p 'magit-log-mode) 1 0))))
+  (-let* (((total-width unit-width duration-spec) magit-log-margin-spec)
+          (name-width (- total-width 1 3 ; gap, digits
+                         (if (= unit-width 1) 1 (1+ unit-width)) ; unit(+space)
+                         (if (derived-mode-p 'magit-log-mode) 1 0)))) ; fringe
     (if date
         (magit-make-margin-overlay
          (and author
               (concat (propertize (truncate-string-to-width
-                                   (or author "")
-                                   (- width 1 3 ; gap, digits
-                                      (if (= unit-width 1) 1 (1+ unit-width))
-                                      (if (derived-mode-p 'magit-log-mode) 1 0))
-                                   nil ?\s (make-string 1 magit-ellipsis))
+                                   author name-width nil
+                                   ?\s (make-string 1 magit-ellipsis))
                                   'face 'magit-log-author)
                       " "))
          (propertize (magit-format-duration
@@ -1038,7 +1035,7 @@ Do not add this to a hook variable."
          (and (derived-mode-p 'magit-log-mode)
               (propertize " " 'face 'fringe)))
       (magit-make-margin-overlay
-       (propertize (make-string (1- width) ?\s) 'face 'default)
+       (propertize (make-string (1- total-width) ?\s) 'face 'default)
        (propertize " " 'face 'fringe)))))
 
 (defun magit-format-duration (duration spec &optional width)
