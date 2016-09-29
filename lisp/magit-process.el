@@ -54,6 +54,27 @@ Should be consistent with the Git config value `i18n.logOutputEncoding'."
   :group 'magit-log
   :type '(coding-system :tag "Coding system to decode Git log output"))
 
+(defcustom magit-git-output-coding-system
+  (when (eq system-type 'windows-nt)
+    (unless (cl-member "i18n.logOutputEncoding=" magit-git-global-arguments
+                       :test #'string-prefix-p)
+      ;; FIXME: this causes `magit-git-global-arguments' to show as
+      ;; changed (i.e., shows "original value" in addition to current
+      ;; value).
+      (setq magit-git-global-arguments
+            (append magit-git-global-arguments '("-c" "i18n.logOutputEncoding=UTF-8"))))
+    'utf-8)
+  "Coding system for receiving output from Git.
+
+If non-nil, the Git config value `i18n.logOutputEncoding' should
+be set via `magit-git-global-arguments' to value consistent with
+this."
+  :package-version '(magit . "2.8.0")
+  :group 'magit-process
+  :group 'magit-log
+  :type '(choice (coding-system :tag "Coding system to decode Git output")
+                 (const :tag "Use system default" nil)))
+
 (defcustom magit-process-connection-type (not (eq system-type 'cygwin))
   "Connection type used for the Git process.
 
@@ -303,8 +324,7 @@ before use.
 Process output goes into a new section in the buffer returned by
 `magit-process-buffer'."
   (run-hooks 'magit-pre-call-git-hook)
-  (let ((coding-system-for-read
-         (or coding-system-for-read magit-log-output-coding-system)))
+  (let ((default-process-coding-system (magit--process-coding-system)))
     (apply #'magit-call-process magit-git-executable
            (magit-process-git-arguments args))))
 
@@ -454,8 +474,7 @@ and still alive), as well as the respective Magit status buffer.
 
 See `magit-start-process' for more information."
   (run-hooks 'magit-pre-start-git-hook)
-  (let ((coding-system-for-read
-         (or coding-system-for-read magit-log-output-coding-system)))
+  (let ((default-process-coding-system (magit--process-coding-system)))
     (apply #'magit-start-process magit-git-executable input
            (magit-process-git-arguments args))))
 
@@ -700,12 +719,13 @@ Return the matched string suffixed with \": \", if needed."
             (t                             (concat prompt ": "))))))
 
 (defun magit--process-coding-system ()
-  (if magit-process-ensure-unix-line-ending
-      (cons (coding-system-change-eol-conversion
-             (car default-process-coding-system) 'unix)
-            (coding-system-change-eol-conversion
-             (cdr default-process-coding-system) 'unix))
-      default-process-coding-system))
+  (let ((fro (or magit-git-output-coding-system
+                 (car default-process-coding-system)))
+        (to (cdr default-process-coding-system)))
+    (if magit-process-ensure-unix-line-ending
+        (cons (coding-system-change-eol-conversion fro 'unix)
+              (coding-system-change-eol-conversion to 'unix))
+      (cons fro to))))
 
 (defvar magit-credential-hook nil
   "Hook run before Git needs credentials.")
