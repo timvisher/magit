@@ -128,7 +128,15 @@ This function should not be removed from the value of this option.
 `magit-diff-highlight-hunk-region-using-underline' emphasize the
 region by placing delimiting horizonal lines before and after it.
 Which implementation is preferable depends on the Emacs version,
-and the more suitable one is part of the default value."
+and the more suitable one is part of the default value.
+
+Instead of, or in addition to, using delimiting horizontal lines,
+to emphasize the region, you may which to emphasize the text
+itself, using `magit-diff-highlight-hunk-region-using-face'.
+
+In terminal frames it's not possible to draw lines as the overlay
+and underline variants normally do, so there they fall back to
+calling the face function instead."
   :package-version '(magit . "2.9.0")
   :set-after '(magit-diff-show-lines-boundaries)
   :group 'magit-diff
@@ -334,6 +342,18 @@ and https://debbugs.gnu.org/cgi/bugreport.cgi?bug=7847."
      :inherit magit-diff-hunk-heading-highlight
      :foreground "LightSalmon3"))
   "Face for selected diff hunk headings."
+  :group 'magit-faces)
+
+(defface magit-diff-hunk-region
+  '((t :inherit bold))
+  "Face used by `magit-diff-highlight-hunk-region-using-face'.
+
+This face is overlayed over text that uses other hunk faces,
+and those normally set the foreground and background colors.
+The `:foreground' and especially the `:background' properties
+should be avoided here.  Setting the latter would cause the
+lose of information.  Good properties to set here are `:weight'
+and `:slant'."
   :group 'magit-faces)
 
 (defface magit-diff-lines-heading
@@ -2154,6 +2174,11 @@ are highlighted."
                                    'face face
                                    'priority 2)))
 
+(defun magit-diff-highlight-hunk-region-using-face (section)
+  (magit-diff--make-hunk-overlay (magit-diff-hunk-region-beginning)
+                                 (1+ (magit-diff-hunk-region-end))
+                                 'face 'magit-diff-hunk-region))
+
 (defun magit-diff-highlight-hunk-region-using-overlays (section)
   (if (window-system)
       (let ((beg (magit-diff-hunk-region-beginning))
@@ -2164,7 +2189,7 @@ are highlighted."
                   'face 'magit-diff-lines-boundary)))
         (magit-diff--make-hunk-overlay beg (1+ beg) 'before-string str)
         (magit-diff--make-hunk-overlay end (1+ end) 'after-string  str))
-    ))
+    (magit-diff-highlight-hunk-region-using-face section)))
 
 (defun magit-diff-highlight-hunk-region-using-underline (section)
   (if (window-system)
@@ -2185,7 +2210,7 @@ are highlighted."
               (ln beg beg-eol :overline color :underline color)
             (ln beg beg-eol :overline color)
             (ln end-bol end :underline color))))
-    ))
+    (magit-diff-highlight-hunk-region-using-face section)))
 
 (defun magit-diff--make-hunk-overlay (start end &rest args)
   (let ((ov (make-overlay start end nil t)))
